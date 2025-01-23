@@ -1,5 +1,11 @@
 import folium
 import webbrowser
+from folium.plugins import MarkerCluster
+from folium.plugins import MeasureControl
+from folium.plugins import HeatMap
+from folium.plugins import Fullscreen
+
+
 
 def gerar_lista_pontos(pontos_cameras, pontos_wifi):
     # Combina as listas de pontos
@@ -51,7 +57,7 @@ pontos_wifi = [
     {"nome": "CRAS", "coords": [-21.341589383618388, -49.499289025276084], "numero": 6},
     {"nome": "Conselho Tutelar", "coords": [-21.34248536108326, -49.50286062608894], "numero": 7},
     {"nome": "Projeto Girassol", "coords": [-21.339097819153412, -49.49569251705961], "numero": 8},
-    {"nome": "Fundo Social", "coords": [-21.34159128255497, -49.499173982416075], "numero": 9},
+    {"nome": "Fundo Social", "coords": [-21.342578323166784, -49.50374376989297], "numero": 9},
     {"nome": "Pronto Socorro e ESF II", "coords": [-21.33892425959064, -49.4973615058551], "numero": 10},
     {"nome": "UBS e ESF I", "coords": [-21.344297618577826, -49.49773443702663], "numero": 11},
     {"nome": "Estrategia Saúde e Família III", "coords": [-21.338093502710798, -49.49578987524122], "numero": 12},
@@ -115,32 +121,85 @@ folium.LayerControl(collapsed=False).add_to(mapa)
 for ponto in pontos_cameras:
     folium.Marker(
         location=ponto["coords"],
-        icon=folium.Icon(color="red", icon="camera")  # Ícone vermelho para câmeras
+        icon=folium.Icon(color="red", icon="camera")
     ).add_to(mapa)
 
     folium.map.Marker(
         location=ponto["coords"],
         icon=folium.DivIcon(
-            html=f"""<div style="font-size: 18px; color: white;"><b>{ponto['numero']}</div>"""
-            # html=f"""<div style="font-size: 18px; color: black;"><b>{ponto['numero']}</div>"""
+            html=f"""
+            <div class="numero-label" style="
+                font-size: 18px;
+                color: black;
+                text-shadow: 1px 1px 2px white;
+            "><b>{ponto['numero']}</b></div>
+            """
         )
     ).add_to(mapa)
 
 for ponto in pontos_wifi:
     folium.Marker(
         location=ponto["coords"],
-        icon=folium.Icon(color="blue", icon="cloud")  # Ícone de Wi-Fi
+        icon=folium.Icon(color="blue", icon="cloud")
     ).add_to(mapa)
 
     folium.map.Marker(
         location=ponto["coords"],
         icon=folium.DivIcon(
-            html=f"""<div style="font-size: 18px; color: white;"><b>{ponto['numero']}</b></div>"""
-            # html=f"""<div style="font-size: 18px; color: purple;"><b>{ponto['numero']}</b></div>"""
+            html=f"""
+            <div class="numero-label" style="
+                font-size: 18px;
+                color: black;
+                text-shadow: 1px 1px 2px white;
+            "><b>{ponto['numero']}</b></div>
+            """
         )
     ).add_to(mapa)
 
-lista_pontos = gerar_lista_pontos(pontos_cameras, pontos_wifi)
+# Adicionar JavaScript para troca de cores
+js_script = """
+<script>
+    function updateTextColor() {
+        const labels = document.querySelectorAll('.numero-label');
+        const activeLayer = document.querySelector('.leaflet-control-layers-base input:checked').nextSibling.innerText;
+
+        labels.forEach(label => {
+            if (activeLayer.includes("Satélite")) {
+                label.style.color = "white";
+                label.style.textShadow = "1px 1px 2px black";
+            } else {
+                label.style.color = "black";
+                label.style.textShadow = "1px 1px 2px white";
+            }
+        });
+    }
+
+    // Monitorar mudanças nas camadas
+    document.querySelectorAll('.leaflet-control-layers-base input').forEach(input => {
+        input.addEventListener('change', updateTextColor);
+    });
+
+    // Atualizar ao carregar o mapa
+    updateTextColor();
+</script>
+"""
+
+# Criar lista de coordenadas para o heatmap
+heatmap_data = [p["coords"] for p in pontos_cameras + pontos_wifi]
+
+# Adicionar heatmap ao mapa
+HeatMap(heatmap_data, radius=15).add_to(mapa)
+
+coordenadas_wifi = [p["coords"] for p in pontos_wifi]
+folium.PolyLine(coordenadas_wifi, color="blue", weight=2.5, opacity=1).add_to(mapa)
+
+mapa.add_child(MeasureControl())
+
+Fullscreen().add_to(mapa)
+
+
+mapa.get_root().html.add_child(folium.Element(js_script))
+#lista_pontos = gerar_lista_pontos(pontos_cameras, pontos_wifi)
 
 # Salvar e abrir o mapa
 nome_arquivo = "mapa_com_lista.html"
